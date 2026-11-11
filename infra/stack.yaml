@@ -1,0 +1,81 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: LLM Lab - une instance EC2 qui sert un LLM ouvert (Ollama) et son interface web.
+
+Parameters:
+  InstanceType:
+    Type: String
+    Default: t3.large
+    AllowedValues: [t3.large, m5.large, r5.large]
+    Description: Le Learner Lab n'autorise que les tailles nano a large.
+  ModelName:
+    Type: String
+    Default: "llama3.2:3b"
+    Description: Etiquette Ollama du modele.
+  AccessCode:
+    Type: String
+    NoEcho: true
+    MinLength: 6
+    Description: Code demande par l'interface web.
+  RepoUrl:
+    Type: String
+    Description: URL HTTPS du depot GitHub public (https://github.com/COMPTE/llm-lab.git).
+  LatestAmi:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+
+Resources:
+  WebSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: HTTP entrant pour LLM Lab
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  LlmInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref LatestAmi
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: LabInstanceProfile
+      SecurityGroupIds:
+        - !GetAtt WebSecurityGroup.GroupId
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 30
+            VolumeType: gp3
+      Tags:
+        - Key: Name
+          Value: llm-lab
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euxo pipefail
+          exec > /var/log/llm-lab-setup.log 2>&1
+          dnf install -y docker git libicu
+          systemctl enable --now docker
+          usermod -aG docker ec2-user
+          mkdir -p /usr/libexec/docker/cli-plugins
+          curl -fsSL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
+            -o /usr/libexec/docker/cli-plugins/docker-compose
+          chmod +x /usr/libexec/docker/cli-plugins/docker-compose
+          git clone ${RepoUrl} /opt/llm
+          cat > /opt/llm/.env <<ENV
+          MODEL=${ModelName}
+          ACCESS_CODE=${AccessCode}
+          APP_IMAGE=llm-app:local
+          ENV
+          chown -R ec2-user:ec2-user /opt/llm
+          cd /opt/llm
+          docker compose up -d --build
+          docker compose exec -T ollama ollama pull ${ModelName}
+
+Outputs:
+  Url:
+    Description: Adresse de l'interface (change a chaque redemarrage de l'instance).
+    Value: !Sub http://${LlmInstance.PublicDnsName}
+  InstanceId:
+    Value: !Ref LlmInstance

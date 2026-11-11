@@ -1,0 +1,47 @@
+name: ci-cd
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:                       # CI : machine fournie par GitHub, aucun accès à AWS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r app/requirements.txt pytest
+      - run: pytest -q
+
+  deploy:                     # CD : exécuteur installé sur l'instance EC2, droits = rôle de l'instance
+    needs: test
+    runs-on: self-hosted
+    env:
+      AWS_DEFAULT_REGION: us-east-1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construire l'image et la pousser dans ECR
+        run: |
+          COMPTE=$(aws sts get-caller-identity --query Account --output text)
+          REGISTRE=$COMPTE.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+          IMAGE=$REGISTRE/llm-app:${GITHUB_SHA::7}
+          aws ecr get-login-password | docker login --username AWS --password-stdin $REGISTRE
+          docker build -t $IMAGE --build-arg APP_VERSION=${GITHUB_SHA::7} app
+          docker push $IMAGE
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+      - name: Déployer la nouvelle version
+        run: |
+          cp docker-compose.yml /opt/llm/docker-compose.yml
+          sed -i "s|^APP_IMAGE=.*|APP_IMAGE=$IMAGE|" /opt/llm/.env
+          cd /opt/llm && docker compose up -d --no-build
+      - name: Vérifier que le service répond avec la bonne version
+        run: |
+          for i in $(seq 1 20); do
+            if curl -fs localhost/api/health | grep -q "\"version\":\"${GITHUB_SHA::7}\""; then
+              echo "Version ${GITHUB_SHA::7} en service"; exit 0
+            fi
+            sleep 3
+          done
+          echo "Le service ne répond pas avec la version attendue"; exit 1

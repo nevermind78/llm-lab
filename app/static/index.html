@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LLM Lab</title>
+<style>
+  :root { color-scheme: light dark; --bord: #8884; --accent: #2563eb; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.5 system-ui, sans-serif; display: flex; flex-direction: column; height: 100vh; }
+  header { padding: 12px 16px; border-bottom: 1px solid var(--bord); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  header h1 { font-size: 18px; margin: 0; flex: 1; }
+  #etat { font-size: 13px; opacity: .8; }
+  #code { width: 150px; }
+  main { flex: 1; overflow-y: auto; padding: 16px; max-width: 800px; width: 100%; margin: 0 auto; }
+  .msg { padding: 10px 14px; border-radius: 12px; margin: 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .user { background: var(--accent); color: #fff; margin-left: 15%; }
+  .assistant { border: 1px solid var(--bord); margin-right: 15%; }
+  .mesure { font-size: 12px; opacity: .7; margin: -4px 0 8px 4px; }
+  form { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--bord); max-width: 800px; width: 100%; margin: 0 auto; }
+  textarea, input { font: inherit; padding: 8px 10px; border: 1px solid var(--bord); border-radius: 8px; background: transparent; color: inherit; }
+  textarea { flex: 1; resize: none; height: 46px; }
+  button { font: inherit; padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+</style>
+</head>
+<body>
+<header>
+  <h1>LLM Lab</h1>
+  <span id="etat">connexion…</span>
+  <input id="code" type="password" placeholder="Code d'accès" autocomplete="off">
+</header>
+<main id="fil"></main>
+<form id="saisie">
+  <textarea id="question" placeholder="Posez une question…" required></textarea>
+  <button id="envoyer">Envoyer</button>
+</form>
+<script>
+const fil = document.getElementById('fil'), form = document.getElementById('saisie');
+const question = document.getElementById('question'), bouton = document.getElementById('envoyer');
+const historique = [];
+
+function bulle(role, texte) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + role; d.textContent = texte;
+  fil.appendChild(d); fil.scrollTop = fil.scrollHeight;
+  return d;
+}
+
+async function etat() {
+  try {
+    const h = await (await fetch('/api/health')).json();
+    document.getElementById('etat').textContent =
+      `version ${h.version} · ${h.modele} · ${h.modele_pret ? 'modèle prêt' : 'modèle absent'}`;
+  } catch { document.getElementById('etat').textContent = 'API injoignable'; }
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const texte = question.value.trim();
+  if (!texte) return;
+  question.value = ''; bouton.disabled = true;
+  historique.push({ role: 'user', content: texte });
+  bulle('user', texte);
+  const sortie = bulle('assistant', '…');
+  const debut = performance.now();
+  let reponse = '';
+  try {
+    const r = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-access-code': document.getElementById('code').value },
+      body: JSON.stringify({ messages: historique.slice(-20) }),
+    });
+    if (!r.ok) throw new Error(r.status === 401 ? "code d'accès invalide" : 'erreur ' + r.status);
+    const lecteur = r.body.getReader(), decodeur = new TextDecoder();
+    for (;;) {
+      const { done, value } = await lecteur.read();
+      if (done) break;
+      reponse += decodeur.decode(value, { stream: true });
+      sortie.textContent = reponse; fil.scrollTop = fil.scrollHeight;
+    }
+    historique.push({ role: 'assistant', content: reponse });
+    const s = (performance.now() - debut) / 1000;
+    const m = document.createElement('div');
+    m.className = 'mesure';
+    m.textContent = `${s.toFixed(1)} s · ${(reponse.length / s).toFixed(0)} caractères/s`;
+    fil.appendChild(m);
+  } catch (err) {
+    sortie.textContent = 'Échec : ' + err.message;
+    historique.pop();
+  }
+  bouton.disabled = false; question.focus();
+});
+question.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
+});
+etat(); setInterval(etat, 15000);
+</script>
+</body>
+</html>
