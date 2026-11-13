@@ -12,6 +12,8 @@ un modèle CloudFormation et un pipeline GitHub Actions (tests, image dans ECR, 
 | `infra/stack.yaml` | CloudFormation : groupe de sécurité + instance auto-configurée | 4 |
 | `pipeline/ci-cd.yml` | Pipeline : tests, image vers ECR, déploiement, vérification. À copier dans `.github/workflows/` au lab 5 | 5 |
 
-Vérifié par l'auteur : les 7 tests passent ; `infra/stack.yaml` passe cfn-lint.
-Non exécuté par l'auteur : le déploiement réel dans un Learner Lab (EC2, ECR, exécuteur GitHub).
-Déroulez les labs 0 à 6 une fois avec un compte étudiant avant le cours.
+Vérifié le 13 novembre 2026 dans un Learner Lab réel (vue étudiant, `us-east-1`) : les labs 1 à 6 ont été
+déroulés en ligne de commande, de l'instance manuelle au nettoyage. Les 7 tests passent ; `infra/stack.yaml`
+passe cfn-lint.
+Non vérifié : les parcours à la souris dans la console AWS et sur GitHub (Session Manager, CloudShell,
+**Use this template**, éditeur web). Déroulez-les une fois avec un compte étudiant avant le cours.
