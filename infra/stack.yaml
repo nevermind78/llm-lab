@@ -72,6 +72,7 @@ Resources:
           cd /opt/llm
           docker build -t llm-app:local app
           docker compose up -d
+          until docker compose exec -T ollama ollama list; do sleep 2; done
           docker compose exec -T ollama ollama pull ${ModelName}
 
 Outputs:
