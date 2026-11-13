@@ -11,7 +11,7 @@ ACCESS_CODE = os.environ.get("ACCESS_CODE", "")
 VERSION = os.environ.get("APP_VERSION", "dev")
 SYSTEM = os.environ.get("SYSTEM_PROMPT",
                         "Tu es un assistant utile. Réponds en français, de façon concise.")
-MAX_MESSAGES, MAX_CARACTERES = 20, 4000
+MAX_MESSAGES, MAX_CARACTERES = 20, 400000
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 app = FastAPI(title="LLM Lab")
