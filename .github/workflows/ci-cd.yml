@@ -8,8 +8,8 @@ jobs:
   test:                       # CI : machine fournie par GitHub, aucun accès à AWS
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - run: pip install -r app/requirements.txt pytest
@@ -21,7 +21,7 @@ jobs:
     env:
       AWS_DEFAULT_REGION: us-east-1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Construire l'image et la pousser dans ECR
         run: |
           COMPTE=$(aws sts get-caller-identity --query Account --output text)

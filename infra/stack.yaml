@@ -70,7 +70,8 @@ Resources:
           ENV
           chown -R ec2-user:ec2-user /opt/llm
           cd /opt/llm
-          docker compose up -d --build
+          docker build -t llm-app:local app
+          docker compose up -d
           docker compose exec -T ollama ollama pull ${ModelName}
 
 Outputs:
