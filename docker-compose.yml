@@ -13,6 +13,7 @@ services:
       OLLAMA_URL: http://ollama:11434
       MODEL: ${MODEL:-llama3.2:3b}
       ACCESS_CODE: ${ACCESS_CODE:-}
+      SYSTEM_PROMPT: ${SYSTEM_PROMPT:-Tu es un assistant utile. Réponds en français, de façon concise.}
     ports:
       - "80:8000"
     depends_on:
