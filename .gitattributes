@@ -1,0 +1,2 @@
+# Les scripts shell tournent sous Linux (conteneurs, instance) : fins de ligne LF, même sous Windows.
+*.sh text eol=lf

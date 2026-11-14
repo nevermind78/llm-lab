@@ -37,7 +37,9 @@ async def modele_pret():
     try:
         async with httpx.AsyncClient(timeout=3) as client:
             r = await client.get(f"{OLLAMA_URL}/api/tags")
-            return any(m["name"] == MODEL for m in r.json().get("models", []))
+            # Ollama liste « nom:latest » pour un modèle créé sans étiquette.
+            return any(MODEL in (m["name"], m["name"].removesuffix(":latest"))
+                       for m in r.json().get("models", []))
     except Exception:
         return False
 

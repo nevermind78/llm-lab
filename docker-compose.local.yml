@@ -1,0 +1,7 @@
+# Complément pour travailler sur son propre poste : rend Ollama joignable sur localhost:11434,
+# ce dont le script finetune/evaluer.py a besoin. À ne pas utiliser sur l'instance AWS.
+# Usage : docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
+services:
+  ollama:
+    ports:
+      - "127.0.0.1:11434:11434"
